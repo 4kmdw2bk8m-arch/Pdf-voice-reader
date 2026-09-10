@@ -10,266 +10,584 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PDF Reader">
-<meta name="theme-color" content="#0f1115">
+<meta name="theme-color" content="#0b0d12">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root {
-    --bg: #0f1115;
-    --panel: #1a1d24;
-    --panel-2: #22262f;
-    --accent: #6c5ce7;
-    --accent-2: #a29bfe;
-    --text: #eceef2;
-    --text-dim: #9aa0ac;
-    --border: #2c313c;
+    --bg: #0b0d12;
+    --panel: #14171f;
+    --panel-2: #1c202b;
+    --panel-3: #242835;
+    --accent: #7c5cff;
+    --accent-2: #a78bfa;
+    --accent-grad: linear-gradient(135deg, #7c5cff, #ff6bd6);
+    --text: #f2f3f7;
+    --text-dim: #8b90a0;
+    --border: #262b38;
+    --sidebar-w: 220px;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+  }
+  #app { display: flex; height: 100vh; height: 100dvh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--panel);
+    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 24px 16px 100px;
+    padding: 20px 14px;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+    z-index: 50;
   }
-  h1 {
-    font-size: 1.4rem;
-    margin: 8px 0 4px;
-    font-weight: 700;
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 10px 24px;
+    font-weight: 800; font-size: 1.05rem;
   }
-  .subtitle {
+  .brand .dot {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: var(--accent-grad);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 12px;
+    border-radius: 10px;
     color: var(--text-dim);
-    font-size: 0.85rem;
-    margin-bottom: 20px;
-    text-align: center;
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    margin-bottom: 2px;
   }
-  .card {
+  .nav-item.active { background: var(--panel-3); color: var(--text); }
+  .nav-item:active { background: var(--panel-2); }
+  .nav-item svg { flex-shrink: 0; }
+  .sidebar-footer {
+    margin-top: auto;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    padding: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .mobile-topbar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .icon-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 40;
+  }
+
+  /* MAIN */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 28px 40px;
+  }
+
+  h1.page-title { font-size: 1.5rem; margin: 0 0 4px; font-weight: 800; }
+  .page-sub { color: var(--text-dim); font-size: 0.85rem; margin: 0 0 20px; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+  .stat-card {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 16px;
-    width: 100%;
-    max-width: 560px;
-    padding: 20px;
-    margin-bottom: 16px;
+    padding: 18px;
   }
-  .drop-zone {
-    border: 2px dashed var(--border);
-    border-radius: 14px;
-    padding: 32px 16px;
-    text-align: center;
-    cursor: pointer;
-    transition: 0.2s;
+  .stat-card.accent {
+    background: var(--accent-grad);
+    border: none;
   }
-  .drop-zone.dragover, .drop-zone:hover {
-    border-color: var(--accent);
+  .stat-card .icon-wrap {
+    width: 34px; height: 34px;
+    border-radius: 9px;
     background: var(--panel-2);
-  }
-  .drop-zone svg { margin-bottom: 8px; }
-  .drop-zone p { margin: 4px 0; color: var(--text-dim); font-size: 0.9rem; }
-  .drop-zone .main-text { color: var(--text); font-weight: 600; font-size: 1rem; }
-  input[type=file] { display: none; }
-
-  .file-info {
-    display: none;
-    align-items: center;
-    gap: 10px;
-    background: var(--panel-2);
-    border-radius: 12px;
-    padding: 12px 14px;
-    margin-bottom: 14px;
-  }
-  .file-info .icon {
-    width: 36px; height: 36px;
-    background: var(--accent);
-    border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
+    margin-bottom: 10px;
   }
-  .file-info .name {
-    font-size: 0.9rem;
+  .stat-card.accent .icon-wrap { background: rgba(255,255,255,0.2); }
+  .stat-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .stat-card.accent .stat-label { color: rgba(255,255,255,0.85); }
+  .stat-value { font-size: 1.7rem; font-weight: 800; }
+  .stat-value span { font-size: 0.95rem; font-weight: 600; color: var(--text-dim); }
+  .stat-card.accent .stat-value span { color: rgba(255,255,255,0.8); }
+
+  .section-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    margin: 6px 0 14px;
+  }
+
+  .add-book-card {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    aspect-ratio: 3/4.3;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 0.8rem;
     font-weight: 600;
+    text-align: center;
+    padding: 10px;
+  }
+  .add-book-card:active, .add-book-card.dragover { border-color: var(--accent); color: var(--accent-2); }
+
+  .library-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 16px;
+  }
+  .book-card { cursor: pointer; }
+  .book-cover {
+    aspect-ratio: 3/4.3;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 14px 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  }
+  .book-cover .title {
+    font-weight: 800;
+    font-size: 0.92rem;
+    line-height: 1.25;
+    color: white;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .book-cover .badge {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(4px);
+    color: white;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+  }
+  .book-cover .progress-mini {
+    position: absolute; bottom: 0; left: 0; height: 4px;
+    background: rgba(255,255,255,0.85);
+  }
+  .book-meta { margin-top: 8px; }
+  .book-meta .name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
   }
-  .file-info .pages {
-    font-size: 0.78rem;
+  .book-meta .pages {
+    font-size: 0.72rem;
     color: var(--text-dim);
   }
 
-  .text-view {
-    max-height: 220px;
-    overflow-y: auto;
-    background: var(--panel-2);
-    border-radius: 12px;
-    padding: 14px;
-    font-size: 0.92rem;
-    line-height: 1.6;
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
     color: var(--text-dim);
-    display: none;
   }
-  .text-view mark {
+
+  input[type=file] { display: none; }
+
+  /* READER */
+  .reader {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+  }
+  .reader.open { display: flex; }
+  .reader-top {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .reader-top .title {
+    flex: 1;
+    font-weight: 800;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .reader-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 22px 20px;
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .reader-text {
+    font-size: 1.15rem;
+    line-height: 2;
+    color: var(--text-dim);
+  }
+  .reader-text mark {
     background: var(--accent);
     color: white;
-    border-radius: 3px;
-    padding: 0 2px;
+    border-radius: 4px;
+    padding: 1px 3px;
+    box-decoration-break: clone;
   }
-
-  .controls-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-top: 16px;
+  .reader-controls {
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+  }
+  .rc-row1 {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
   }
   select {
     background: var(--panel-2);
     color: var(--text);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 9px;
     padding: 8px 10px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     flex: 1;
+    min-width: 0;
   }
   .speed-btn {
     background: var(--panel-2);
     border: 1px solid var(--border);
     color: var(--text);
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 0.85rem;
+    border-radius: 9px;
+    padding: 8px 14px;
+    font-size: 0.82rem;
     font-weight: 700;
     cursor: pointer;
-    min-width: 52px;
   }
-
-  .progress-bar-wrap {
-    margin-top: 18px;
-  }
-  .progress-bar {
-    height: 5px;
-    background: var(--panel-2);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
-    transition: width 0.2s linear;
-  }
-  .time-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    margin-top: 6px;
-  }
-
-  .play-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 28px;
-    margin-top: 20px;
-  }
+  .progress-bar { height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+  .progress-fill { height: 100%; width: 0%; background: var(--accent-grad); transition: width 0.2s linear; }
+  .time-row { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 10px; }
+  .play-controls { display: flex; align-items: center; justify-content: center; gap: 30px; }
   .btn-circle {
     background: var(--panel-2);
     border: 1px solid var(--border);
     color: var(--text);
-    width: 44px; height: 44px;
+    width: 46px; height: 46px;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
   }
   .btn-play {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    width: 64px; height: 64px;
-    box-shadow: 0 4px 16px rgba(108,92,231,0.4);
+    background: var(--accent-grad);
+    border: none;
+    width: 62px; height: 62px;
+    box-shadow: 0 4px 18px rgba(124,92,255,0.45);
   }
   .btn-circle:active { transform: scale(0.94); }
-  .btn-circle:disabled, .disabled { opacity: 0.4; pointer-events: none; }
+  .disabled { opacity: 0.35; pointer-events: none; }
+  .status-line { text-align: center; font-size: 0.75rem; color: var(--text-dim); margin-top: 10px; }
 
-  .status {
-    text-align: center;
-    font-size: 0.8rem;
-    color: var(--text-dim);
-    margin-top: 14px;
-  }
-
-  .hint {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    text-align: center;
-    margin-top: 6px;
-    line-height: 1.5;
+  /* Responsive */
+  @media (max-width: 760px) {
+    .sidebar {
+      position: fixed; top: 0; bottom: 0; left: 0;
+      transform: translateX(-100%);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .backdrop.show { display: block; }
+    .mobile-topbar { display: flex; }
+    .content { padding: 18px 16px 30px; }
+    .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .library-grid { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 12px; }
+    .reader-body { padding: 18px 16px; }
+    .reader-text { font-size: 1.05rem; }
   }
 </style>
 </head>
 <body>
 
-<h1>🎧 PDF Voice Reader</h1>
-<p class="subtitle">Uploade un PDF et écoute-le à voix haute</p>
+<div id="app">
+  <div class="backdrop" id="backdrop"></div>
 
-<div class="card">
-  <div class="drop-zone" id="dropZone">
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6c5ce7" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-    <p class="main-text">Touche pour choisir un PDF</p>
-    <p>ou glisse-dépose ici</p>
-  </div>
-  <input type="file" id="fileInput" accept="application/pdf">
-
-  <div class="file-info" id="fileInfo">
-    <div class="icon">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+  <div class="sidebar" id="sidebar">
+    <div class="brand"><div class="dot">🎧</div> PDF Reader</div>
+    <div class="nav-item active" data-view="library">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      Ma Bibliothèque
     </div>
-    <div>
-      <div class="name" id="fileName">-</div>
-      <div class="pages" id="filePages">-</div>
+    <div class="nav-item" data-view="about">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      À propos
+    </div>
+    <div class="sidebar-footer">100% local — rien n'est envoyé sur internet.</div>
+  </div>
+
+  <div class="main">
+    <div class="mobile-topbar">
+      <button class="icon-btn" id="menuBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div style="font-weight:800;">🎧 PDF Reader</div>
+      <div style="width:38px;"></div>
+    </div>
+
+    <div class="content" id="libraryView">
+      <h1 class="page-title">Ma Bibliothèque</h1>
+      <p class="page-sub">Tes livres et documents PDF, lus à voix haute</p>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-2)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="stat-label">Mots écoutés</div>
+          <div class="stat-value" id="statWords">0</div>
+        </div>
+        <div class="stat-card accent">
+          <div class="icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 2C10 6 6 8 6 13a6 6 0 0 0 12 0c0-2-1-3-2-4 0 2-1 3-2 2 1-3-1-5-2-9z"/></svg>
+          </div>
+          <div class="stat-label">Livres dans ta bibliothèque</div>
+          <div class="stat-value" id="statBooks">0</div>
+        </div>
+      </div>
+
+      <div class="section-title">Mes livres</div>
+      <div class="library-grid" id="libraryGrid">
+        <div class="add-book-card" id="addBookCard">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Ajouter un PDF
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="application/pdf" multiple>
+    </div>
+
+    <div class="content" id="aboutView" style="display:none;">
+      <h1 class="page-title">À propos</h1>
+      <p class="page-sub">PDF Voice Reader</p>
+      <div class="stat-card" style="max-width:480px;">
+        <p style="color:var(--text-dim); font-size:0.9rem; line-height:1.6; margin:0;">
+        Cette app lit tes PDF à voix haute directement dans ton navigateur, grâce à la synthèse vocale intégrée à ton appareil. Aucun fichier n'est envoyé sur un serveur — tout reste sur ton téléphone.
+        </p>
+      </div>
     </div>
   </div>
+</div>
 
-  <div class="text-view" id="textView"></div>
-
-  <div class="controls-row">
-    <select id="voiceSelect"></select>
-    <button class="speed-btn" id="speedBtn">1x</button>
+<!-- READER SCREEN -->
+<div class="reader" id="reader">
+  <div class="reader-top">
+    <button class="icon-btn" id="closeReaderBtn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </button>
+    <div class="title" id="readerTitle">-</div>
   </div>
-
-  <div class="progress-bar-wrap">
+  <div class="reader-body">
+    <div class="reader-text" id="readerText">Extraction en cours…</div>
+  </div>
+  <div class="reader-controls">
+    <div class="rc-row1">
+      <select id="voiceSelect"></select>
+      <button class="speed-btn" id="speedBtn">1x</button>
+    </div>
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="time-row">
-      <span id="wordPos">Mot 0</span>
-      <span id="wordTotal">/ 0</span>
+    <div class="time-row"><span id="wordPos">Mot 0</span><span id="wordTotal">/ 0</span></div>
+    <div class="play-controls">
+      <button class="btn-circle disabled" id="backBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+      </button>
+      <button class="btn-circle btn-play disabled" id="playBtn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+      </button>
+      <button class="btn-circle disabled" id="fwdBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+      </button>
     </div>
+    <div class="status-line" id="status">Prêt</div>
   </div>
-
-  <div class="play-controls">
-    <button class="btn-circle disabled" id="backBtn" title="Reculer">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
-    </button>
-    <button class="btn-circle btn-play disabled" id="playBtn" title="Lecture">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-    </button>
-    <button class="btn-circle disabled" id="fwdBtn" title="Avancer">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
-    </button>
-  </div>
-
-  <div class="status" id="status">Choisis un PDF pour commencer</div>
-  <div class="hint">Fonctionne 100% dans ton navigateur — rien n'est envoyé sur internet.</div>
 </div>
 
 <script>
-const dropZone = document.getElementById('dropZone');
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ---------- IndexedDB: bibliothèque persistante ---------- */
+let db;
+const DB_NAME = 'pdfVoiceReaderDB';
+const STORE = 'books';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains(STORE)) {
+        database.createObjectStore(STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = (e) => reject(e);
+  });
+}
+function dbGetAll() {
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+function dbPut(book) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(book);
+    tx.oncomplete = () => resolve();
+  });
+}
+
+const COVER_GRADIENTS = [
+  'linear-gradient(135deg,#7c5cff,#ff6bd6)',
+  'linear-gradient(135deg,#3ddc97,#2f80ed)',
+  'linear-gradient(135deg,#ff8a5c,#ff5c8a)',
+  'linear-gradient(135deg,#5cc8ff,#7c5cff)',
+  'linear-gradient(135deg,#ffd15c,#ff5c5c)',
+  'linear-gradient(135deg,#5cffb0,#5c9dff)'
+];
+function gradientFor(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  return COVER_GRADIENTS[Math.abs(h) % COVER_GRADIENTS.length];
+}
+
+/* ---------- Navigation sidebar / views ---------- */
+const sidebar = document.getElementById('sidebar');
+const backdrop = document.getElementById('backdrop');
+document.getElementById('menuBtn').addEventListener('click', () => {
+  sidebar.classList.add('open'); backdrop.classList.add('show');
+});
+backdrop.addEventListener('click', () => {
+  sidebar.classList.remove('open'); backdrop.classList.remove('show');
+});
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    const view = item.dataset.view;
+    document.getElementById('libraryView').style.display = view === 'library' ? 'block' : 'none';
+    document.getElementById('aboutView').style.display = view === 'about' ? 'block' : 'none';
+    sidebar.classList.remove('open'); backdrop.classList.remove('show');
+  });
+});
+
+/* ---------- Library rendering ---------- */
+const libraryGrid = document.getElementById('libraryGrid');
+const addBookCard = document.getElementById('addBookCard');
 const fileInput = document.getElementById('fileInput');
-const fileInfo = document.getElementById('fileInfo');
-const fileName = document.getElementById('fileName');
-const filePages = document.getElementById('filePages');
-const textView = document.getElementById('textView');
+let libraryBooks = [];
+let totalWordsRead = 0;
+
+addBookCard.addEventListener('click', () => fileInput.click());
+addBookCard.addEventListener('dragover', (e) => { e.preventDefault(); addBookCard.classList.add('dragover'); });
+addBookCard.addEventListener('dragleave', () => addBookCard.classList.remove('dragover'));
+addBookCard.addEventListener('drop', (e) => {
+  e.preventDefault(); addBookCard.classList.remove('dragover');
+  handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+async function handleFiles(files) {
+  for (const file of files) {
+    if (file.type !== 'application/pdf') continue;
+    const id = 'b_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+    const arrayBuffer = await file.arrayBuffer();
+    const book = {
+      id, name: file.name.replace(/\.pdf$/i, ''),
+      addedAt: Date.now(),
+      progress: 0,
+      wordIndex: 0,
+      data: arrayBuffer
+    };
+    await dbPut(book);
+    libraryBooks.push(book);
+  }
+  renderLibrary();
+}
+
+function renderLibrary() {
+  document.getElementById('statBooks').textContent = libraryBooks.length;
+  document.getElementById('statWords').textContent = totalWordsRead;
+
+  // remove old cards (keep add card)
+  [...libraryGrid.querySelectorAll('.book-card')].forEach(el => el.remove());
+
+  libraryBooks
+    .slice()
+    .sort((a,b) => b.addedAt - a.addedAt)
+    .forEach(book => {
+      const card = document.createElement('div');
+      card.className = 'book-card';
+      card.innerHTML = `
+        <div class="book-cover" style="background:${gradientFor(book.name)}">
+          <div class="badge">PDF</div>
+          <div class="title">${escapeHtml(book.name)}</div>
+          <div class="progress-mini" style="width:${book.progress || 0}%"></div>
+        </div>
+        <div class="book-meta">
+          <div class="name">${escapeHtml(book.name)}</div>
+          <div class="pages">${book.numWords ? book.numWords + ' mots' : 'PDF'}</div>
+        </div>
+      `;
+      card.addEventListener('click', () => openReader(book));
+      libraryGrid.appendChild(card);
+    });
+}
+function escapeHtml(s) {
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+
+/* ---------- Reader ---------- */
+const reader = document.getElementById('reader');
+const readerTitle = document.getElementById('readerTitle');
+const readerText = document.getElementById('readerText');
 const voiceSelect = document.getElementById('voiceSelect');
 const speedBtn = document.getElementById('speedBtn');
 const playBtn = document.getElementById('playBtn');
@@ -279,20 +597,17 @@ const progressFill = document.getElementById('progressFill');
 const wordPos = document.getElementById('wordPos');
 const wordTotal = document.getElementById('wordTotal');
 const statusEl = document.getElementById('status');
+const closeReaderBtn = document.getElementById('closeReaderBtn');
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
+let synth = window.speechSynthesis;
+let voices = [];
+let speeds = [0.75, 1, 1.25, 1.5, 2];
+let speedIdx = 1;
 let words = [];
 let currentIndex = 0;
 let isPlaying = false;
-let speeds = [0.75, 1, 1.25, 1.5, 2];
-let speedIdx = 1;
-let voices = [];
-let synth = window.speechSynthesis;
-
-const CHUNK_SIZE = 25; // words per utterance chunk, for smoother pause/resume + highlight
-
-function setStatus(msg) { statusEl.textContent = msg; }
+let currentBook = null;
+const CHUNK_SIZE = 25;
 
 function loadVoices() {
   voices = synth.getVoices().filter(v => v.lang.startsWith('fr') || v.lang.startsWith('en') || v.lang.startsWith('de'));
@@ -306,100 +621,84 @@ function loadVoices() {
   });
 }
 loadVoices();
-if (speechSynthesis.onvoiceschanged !== undefined) {
-  speechSynthesis.onvoiceschanged = loadVoices;
+if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
+
+closeReaderBtn.addEventListener('click', () => {
+  synth.cancel(); isPlaying = false; updatePlayIcon();
+  reader.classList.remove('open');
+  if (currentBook) {
+    currentBook.progress = words.length ? Math.round((currentIndex / words.length) * 100) : 0;
+    currentBook.wordIndex = currentIndex;
+    dbPut(currentBook);
+    renderLibrary();
+  }
+});
+
+async function openReader(book) {
+  currentBook = book;
+  readerTitle.textContent = book.name;
+  readerText.textContent = 'Extraction du texte en cours…';
+  reader.classList.add('open');
+  synth.cancel(); isPlaying = false; updatePlayIcon();
+  [playBtn, backBtn, fwdBtn].forEach(b => b.classList.add('disabled'));
+  statusEl.textContent = 'Lecture du PDF...';
+
+  try {
+    const pdf = await pdfjsLib.getDocument({ data: book.data.slice(0) }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += content.items.map(it => it.str).join(' ') + ' ';
+      statusEl.textContent = `Extraction page ${i}/${pdf.numPages}`;
+    }
+    fullText = fullText.replace(/\s+/g, ' ').trim();
+    words = fullText.split(' ').filter(w => w.length > 0);
+    currentIndex = book.wordIndex || 0;
+    book.numWords = words.length;
+    dbPut(book);
+
+    renderReaderText();
+    wordTotal.textContent = '/ ' + words.length;
+    wordPos.textContent = 'Mot ' + currentIndex;
+    progressFill.style.width = words.length ? (currentIndex / words.length * 100) + '%' : '0%';
+    [playBtn, backBtn, fwdBtn].forEach(b => b.classList.remove('disabled'));
+    statusEl.textContent = `Prêt — ${words.length} mots`;
+  } catch (err) {
+    readerText.textContent = "Erreur lors de la lecture du PDF.";
+    statusEl.textContent = 'Erreur';
+  }
 }
 
-speedBtn.addEventListener('click', () => {
-  speedIdx = (speedIdx + 1) % speeds.length;
-  speedBtn.textContent = speeds[speedIdx] + 'x';
-  if (isPlaying) {
-    // restart current chunk at new speed
-    synth.cancel();
-    speakFrom(currentIndex);
-  }
-});
-
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropZone.classList.remove('dragover');
-  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-});
-fileInput.addEventListener('change', (e) => {
-  if (e.target.files.length) handleFile(e.target.files[0]);
-});
-
-async function handleFile(file) {
-  if (file.type !== 'application/pdf') {
-    setStatus('Merci de choisir un fichier PDF.');
-    return;
-  }
-  synth.cancel();
-  isPlaying = false;
-  updatePlayIcon();
-  setStatus('Lecture du PDF en cours...');
-  fileName.textContent = file.name;
-  fileInfo.style.display = 'flex';
-
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  filePages.textContent = pdf.numPages + ' pages';
-
-  let fullText = '';
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items.map(item => item.str).join(' ');
-    fullText += pageText + ' ';
-    setStatus(`Extraction : page ${i}/${pdf.numPages}`);
-  }
-
-  fullText = fullText.replace(/\s+/g, ' ').trim();
-  words = fullText.split(' ').filter(w => w.length > 0);
-  currentIndex = 0;
-
-  renderText();
-  wordTotal.textContent = '/ ' + words.length;
-  wordPos.textContent = 'Mot 0';
-  progressFill.style.width = '0%';
-
-  [playBtn, backBtn, fwdBtn].forEach(b => b.classList.remove('disabled'));
-  setStatus(`Prêt — ${words.length} mots extraits`);
-}
-
-function renderText() {
-  textView.style.display = 'block';
-  textView.innerHTML = words.map((w, i) => `<span id="w${i}">${w}</span>`).join(' ');
+function renderReaderText() {
+  readerText.innerHTML = words.map((w,i) => `<span id="rw${i}">${escapeHtml(w)}</span>`).join(' ');
 }
 
 function highlightWord(i) {
-  const prev = document.querySelector('.text-view mark');
-  if (prev) {
-    prev.outerHTML = prev.innerHTML;
-  }
-  const el = document.getElementById('w' + i);
+  const prevMark = readerText.querySelector('mark');
+  if (prevMark) prevMark.outerHTML = prevMark.innerHTML;
+  const el = document.getElementById('rw' + i);
   if (el) {
-    el.outerHTML = `<mark>${el.textContent}</mark>`;
-    document.getElementById('w' + i).scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.outerHTML = `<mark id="rw${i}">${el.textContent}</mark>`;
+    document.getElementById('rw' + i).scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
   wordPos.textContent = 'Mot ' + (i + 1);
   progressFill.style.width = ((i + 1) / words.length * 100) + '%';
+  totalWordsRead++;
+  document.getElementById('statWords').textContent = totalWordsRead;
 }
 
 function updatePlayIcon() {
   playBtn.innerHTML = isPlaying
-    ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
-    : '<svg width="26" height="26" viewBox="0 0 24 24" fill="white"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+    ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+    : '<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
 }
 
 function speakFrom(startIdx) {
   if (startIdx >= words.length) {
-    isPlaying = false;
-    updatePlayIcon();
-    setStatus('Lecture terminée 🎉');
+    isPlaying = false; updatePlayIcon();
+    statusEl.textContent = 'Lecture terminée 🎉';
+    if (currentBook) { currentBook.progress = 100; currentBook.wordIndex = 0; dbPut(currentBook); renderLibrary(); }
     return;
   }
   const endIdx = Math.min(startIdx + CHUNK_SIZE, words.length);
@@ -409,9 +708,8 @@ function speakFrom(startIdx) {
   if (v) utter.voice = v;
   utter.rate = speeds[speedIdx];
 
-  let localIdx = startIdx;
   utter.onboundary = (event) => {
-    if (event.name === 'word' || event.charIndex !== undefined) {
+    if (event.charIndex !== undefined) {
       const spoken = chunkWords.join(' ').slice(0, event.charIndex).split(' ').length - 1;
       const idx = startIdx + spoken;
       if (idx < words.length && idx !== currentIndex) {
@@ -420,32 +718,24 @@ function speakFrom(startIdx) {
       }
     }
   };
-
-  utter.onend = () => {
-    if (isPlaying) {
-      currentIndex = endIdx;
-      speakFrom(endIdx);
-    }
-  };
-
+  utter.onend = () => { if (isPlaying) { currentIndex = endIdx; speakFrom(endIdx); } };
   synth.speak(utter);
-  setStatus('Lecture en cours...');
+  statusEl.textContent = 'Lecture en cours...';
 }
 
+speedBtn.addEventListener('click', () => {
+  speedIdx = (speedIdx + 1) % speeds.length;
+  speedBtn.textContent = speeds[speedIdx] + 'x';
+  if (isPlaying) { synth.cancel(); speakFrom(currentIndex); }
+});
 playBtn.addEventListener('click', () => {
   if (words.length === 0) return;
   if (isPlaying) {
-    synth.cancel();
-    isPlaying = false;
-    updatePlayIcon();
-    setStatus('En pause');
+    synth.cancel(); isPlaying = false; updatePlayIcon(); statusEl.textContent = 'En pause';
   } else {
-    isPlaying = true;
-    updatePlayIcon();
-    speakFrom(currentIndex);
+    isPlaying = true; updatePlayIcon(); speakFrom(currentIndex);
   }
 });
-
 backBtn.addEventListener('click', () => {
   if (words.length === 0) return;
   synth.cancel();
@@ -453,7 +743,6 @@ backBtn.addEventListener('click', () => {
   highlightWord(currentIndex);
   if (isPlaying) speakFrom(currentIndex);
 });
-
 fwdBtn.addEventListener('click', () => {
   if (words.length === 0) return;
   synth.cancel();
@@ -461,6 +750,13 @@ fwdBtn.addEventListener('click', () => {
   highlightWord(currentIndex);
   if (isPlaying) speakFrom(currentIndex);
 });
+
+/* ---------- Init ---------- */
+(async function init() {
+  db = await openDB();
+  libraryBooks = await dbGetAll();
+  renderLibrary();
+})();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
