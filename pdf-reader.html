@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PDF Voice Reader</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg">
+<link rel="apple-touch-icon" href="./icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PDF Reader">
+<meta name="theme-color" content="#0f1115">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #1a1d24;
+    --panel-2: #22262f;
+    --accent: #6c5ce7;
+    --accent-2: #a29bfe;
+    --text: #eceef2;
+    --text-dim: #9aa0ac;
+    --border: #2c313c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 100px;
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin: 8px 0 4px;
+    font-weight: 700;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    padding: 32px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .drop-zone.dragover, .drop-zone:hover {
+    border-color: var(--accent);
+    background: var(--panel-2);
+  }
+  .drop-zone svg { margin-bottom: 8px; }
+  .drop-zone p { margin: 4px 0; color: var(--text-dim); font-size: 0.9rem; }
+  .drop-zone .main-text { color: var(--text); font-weight: 600; font-size: 1rem; }
+  input[type=file] { display: none; }
+
+  .file-info {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel-2);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .file-info .icon {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .file-info .name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-info .pages {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+
+  .text-view {
+    max-height: 220px;
+    overflow-y: auto;
+    background: var(--panel-2);
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+    display: none;
+  }
+  .text-view mark {
+    background: var(--accent);
+    color: white;
+    border-radius: 3px;
+    padding: 0 2px;
+  }
+
+  .controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  select {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    flex: 1;
+  }
+  .speed-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    min-width: 52px;
+  }
+
+  .progress-bar-wrap {
+    margin-top: 18px;
+  }
+  .progress-bar {
+    height: 5px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width 0.2s linear;
+  }
+  .time-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  .play-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    margin-top: 20px;
+  }
+  .btn-circle {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .btn-play {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    width: 64px; height: 64px;
+    box-shadow: 0 4px 16px rgba(108,92,231,0.4);
+  }
+  .btn-circle:active { transform: scale(0.94); }
+  .btn-circle:disabled, .disabled { opacity: 0.4; pointer-events: none; }
+
+  .status {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 14px;
+  }
+
+  .hint {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<h1>🎧 PDF Voice Reader</h1>
+<p class="subtitle">Uploade un PDF et écoute-le à voix haute</p>
+
+<div class="card">
+  <div class="drop-zone" id="dropZone">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6c5ce7" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <p class="main-text">Touche pour choisir un PDF</p>
+    <p>ou glisse-dépose ici</p>
+  </div>
+  <input type="file" id="fileInput" accept="application/pdf">
+
+  <div class="file-info" id="fileInfo">
+    <div class="icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    </div>
+    <div>
+      <div class="name" id="fileName">-</div>
+      <div class="pages" id="filePages">-</div>
+    </div>
+  </div>
+
+  <div class="text-view" id="textView"></div>
+
+  <div class="controls-row">
+    <select id="voiceSelect"></select>
+    <button class="speed-btn" id="speedBtn">1x</button>
+  </div>
+
+  <div class="progress-bar-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="time-row">
+      <span id="wordPos">Mot 0</span>
+      <span id="wordTotal">/ 0</span>
+    </div>
+  </div>
+
+  <div class="play-controls">
+    <button class="btn-circle disabled" id="backBtn" title="Reculer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+    </button>
+    <button class="btn-circle btn-play disabled" id="playBtn" title="Lecture">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+    </button>
+    <button class="btn-circle disabled" id="fwdBtn" title="Avancer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+    </button>
+  </div>
+
+  <div class="status" id="status">Choisis un PDF pour commencer</div>
+  <div class="hint">Fonctionne 100% dans ton navigateur — rien n'est envoyé sur internet.</div>
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileInfo = document.getElementById('fileInfo');
+const fileName = document.getElementById('fileName');
+const filePages = document.getElementById('filePages');
+const textView = document.getElementById('textView');
+const voiceSelect = document.getElementById('voiceSelect');
+const speedBtn = document.getElementById('speedBtn');
+const playBtn = document.getElementById('playBtn');
+const backBtn = document.getElementById('backBtn');
+const fwdBtn = document.getElementById('fwdBtn');
+const progressFill = document.getElementById('progressFill');
+const wordPos = document.getElementById('wordPos');
+const wordTotal = document.getElementById('wordTotal');
+const statusEl = document.getElementById('status');
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let words = [];
+let currentIndex = 0;
+let isPlaying = false;
+let speeds = [0.75, 1, 1.25, 1.5, 2];
+let speedIdx = 1;
+let voices = [];
+let synth = window.speechSynthesis;
+
+const CHUNK_SIZE = 25; // words per utterance chunk, for smoother pause/resume + highlight
+
+function setStatus(msg) { statusEl.textContent = msg; }
+
+function loadVoices() {
+  voices = synth.getVoices().filter(v => v.lang.startsWith('fr') || v.lang.startsWith('en') || v.lang.startsWith('de'));
+  if (voices.length === 0) voices = synth.getVoices();
+  voiceSelect.innerHTML = '';
+  voices.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${v.name} (${v.lang})`;
+    voiceSelect.appendChild(opt);
+  });
+}
+loadVoices();
+if (speechSynthesis.onvoiceschanged !== undefined) {
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+speedBtn.addEventListener('click', () => {
+  speedIdx = (speedIdx + 1) % speeds.length;
+  speedBtn.textContent = speeds[speedIdx] + 'x';
+  if (isPlaying) {
+    // restart current chunk at new speed
+    synth.cancel();
+    speakFrom(currentIndex);
+  }
+});
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+async function handleFile(file) {
+  if (file.type !== 'application/pdf') {
+    setStatus('Merci de choisir un fichier PDF.');
+    return;
+  }
+  synth.cancel();
+  isPlaying = false;
+  updatePlayIcon();
+  setStatus('Lecture du PDF en cours...');
+  fileName.textContent = file.name;
+  fileInfo.style.display = 'flex';
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  filePages.textContent = pdf.numPages + ' pages';
+
+  let fullText = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(item => item.str).join(' ');
+    fullText += pageText + ' ';
+    setStatus(`Extraction : page ${i}/${pdf.numPages}`);
+  }
+
+  fullText = fullText.replace(/\s+/g, ' ').trim();
+  words = fullText.split(' ').filter(w => w.length > 0);
+  currentIndex = 0;
+
+  renderText();
+  wordTotal.textContent = '/ ' + words.length;
+  wordPos.textContent = 'Mot 0';
+  progressFill.style.width = '0%';
+
+  [playBtn, backBtn, fwdBtn].forEach(b => b.classList.remove('disabled'));
+  setStatus(`Prêt — ${words.length} mots extraits`);
+}
+
+function renderText() {
+  textView.style.display = 'block';
+  textView.innerHTML = words.map((w, i) => `<span id="w${i}">${w}</span>`).join(' ');
+}
+
+function highlightWord(i) {
+  const prev = document.querySelector('.text-view mark');
+  if (prev) {
+    prev.outerHTML = prev.innerHTML;
+  }
+  const el = document.getElementById('w' + i);
+  if (el) {
+    el.outerHTML = `<mark>${el.textContent}</mark>`;
+    document.getElementById('w' + i).scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  wordPos.textContent = 'Mot ' + (i + 1);
+  progressFill.style.width = ((i + 1) / words.length * 100) + '%';
+}
+
+function updatePlayIcon() {
+  playBtn.innerHTML = isPlaying
+    ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+    : '<svg width="26" height="26" viewBox="0 0 24 24" fill="white"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+}
+
+function speakFrom(startIdx) {
+  if (startIdx >= words.length) {
+    isPlaying = false;
+    updatePlayIcon();
+    setStatus('Lecture terminée 🎉');
+    return;
+  }
+  const endIdx = Math.min(startIdx + CHUNK_SIZE, words.length);
+  const chunkWords = words.slice(startIdx, endIdx);
+  const utter = new SpeechSynthesisUtterance(chunkWords.join(' '));
+  const v = voices[voiceSelect.value];
+  if (v) utter.voice = v;
+  utter.rate = speeds[speedIdx];
+
+  let localIdx = startIdx;
+  utter.onboundary = (event) => {
+    if (event.name === 'word' || event.charIndex !== undefined) {
+      const spoken = chunkWords.join(' ').slice(0, event.charIndex).split(' ').length - 1;
+      const idx = startIdx + spoken;
+      if (idx < words.length && idx !== currentIndex) {
+        currentIndex = idx;
+        highlightWord(currentIndex);
+      }
+    }
+  };
+
+  utter.onend = () => {
+    if (isPlaying) {
+      currentIndex = endIdx;
+      speakFrom(endIdx);
+    }
+  };
+
+  synth.speak(utter);
+  setStatus('Lecture en cours...');
+}
+
+playBtn.addEventListener('click', () => {
+  if (words.length === 0) return;
+  if (isPlaying) {
+    synth.cancel();
+    isPlaying = false;
+    updatePlayIcon();
+    setStatus('En pause');
+  } else {
+    isPlaying = true;
+    updatePlayIcon();
+    speakFrom(currentIndex);
+  }
+});
+
+backBtn.addEventListener('click', () => {
+  if (words.length === 0) return;
+  synth.cancel();
+  currentIndex = Math.max(0, currentIndex - 20);
+  highlightWord(currentIndex);
+  if (isPlaying) speakFrom(currentIndex);
+});
+
+fwdBtn.addEventListener('click', () => {
+  if (words.length === 0) return;
+  synth.cancel();
+  currentIndex = Math.min(words.length - 1, currentIndex + 20);
+  highlightWord(currentIndex);
+  if (isPlaying) speakFrom(currentIndex);
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

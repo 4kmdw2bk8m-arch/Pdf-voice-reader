@@ -1,0 +1,13 @@
+{
+  "name": "PDF Voice Reader",
+  "short_name": "PDF Reader",
+  "description": "Lis tes PDF à voix haute",
+  "start_url": "./pdf-reader.html",
+  "display": "standalone",
+  "background_color": "#0f1115",
+  "theme_color": "#0f1115",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
